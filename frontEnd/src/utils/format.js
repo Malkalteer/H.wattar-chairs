@@ -12,7 +12,7 @@ export const formatDate = (value, withTime = false) => {
   });
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://h-wattar-chairs.onrender.com/api';
 export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
 
 // الصور المرفوعة تُخزَّن كمسار نسبي (/uploads/..) ويجب أن تُحمَّل من نطاق الخادم لا الواجهة
