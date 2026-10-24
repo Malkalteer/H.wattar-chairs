@@ -1,0 +1,13 @@
+{
+  "name": "wattar-chair-project",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm --prefix backEnd run dev\" \"npm --prefix frontEnd run dev\"",
+    "install:all": "npm install --prefix backEnd && npm install --prefix frontEnd",
+    "build": "npm --prefix frontEnd run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

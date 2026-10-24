@@ -1,0 +1,46 @@
+# /etc/nginx/sites-available/wattar  (غيّر example.com ومسار المشروع)
+# كاش الصور (الصور تُقدَّم من MongoDB عبر Node، والكاش يخفف الحمل):  sudo mkdir -p /var/cache/nginx/wattar && sudo chown www-data /var/cache/nginx/wattar
+proxy_cache_path /var/cache/nginx/wattar levels=1:2 keys_zone=wattar_img:10m max_size=500m inactive=30d use_temp_path=off;
+
+server {
+    listen 80;
+    server_name example.com www.example.com;
+
+    root /var/www/wattar/frontEnd/dist;
+    index index.html;
+
+    # مهم: الافتراضي 1MB وسيرفض رفع الصور (حتى 5 صور × 3MB)
+    client_max_body_size 15m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # الواجهة (SPA)
+    location / {
+        try_files $uri /index.html;
+    }
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # الـ API
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # الصور مخزنة في MongoDB (GridFS) ويقدّمها Node؛ Nginx يحتفظ بنسخة مؤقتة لتسريعها
+    location /uploads/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_cache wattar_img;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        add_header X-Cache $upstream_cache_status;
+    }
+}
