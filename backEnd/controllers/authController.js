@@ -55,15 +55,16 @@ const sendVerificationEmail = async (user) => {
 // يخفي أسعار السلة عن غير المدير عندما تكون خاصية الأسعار مطفأة
 const cartFor = async (req, cart) => ((await canSeePrices(req)) ? cart : stripCart(cart));
 
+const cookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+});
+
 const sendTokenResponse = (res, user, statusCode = 200) => {
   const token = generateToken(user);
 
-  res.cookie('token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie('token', token, { ...cookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
   res.status(statusCode).json({
     token,
@@ -241,7 +242,7 @@ const resetPassword = async (req, res) => {
 };
 
 const logoutUser = (req, res) => {
-  res.clearCookie('token');
+  res.clearCookie('token', cookieOptions());
   res.json({ message: 'تم تسجيل الخروج بنجاح.' });
 };
 
@@ -286,6 +287,8 @@ const updateUserRole = async (req, res) => {
     }
 
     if (typeof isBlocked === 'boolean') {
+      // عند الحظر نُبطل كل جلسات المستخدم فورًا
+      if (isBlocked && !user.isBlocked) user.tokenVersion = (user.tokenVersion || 0) + 1;
       user.isBlocked = isBlocked;
     }
 

@@ -3,6 +3,9 @@ const User = require('../models/User');
 const { jwtSecret } = require('../config/env');
 const { isEmailEnabled } = require('../utils/mailer');
 
+// التوكنات القديمة (قبل تغيير كلمة المرور) تصبح غير صالحة
+const isTokenCurrent = (decoded, user) => (decoded.v || 0) === (user.tokenVersion || 0);
+
 const extractToken = (req) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) return authHeader.split(' ')[1];
@@ -21,8 +24,14 @@ const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, jwtSecret);
     req.user = await User.findById(decoded.id).select('-password');
 
-    if (!req.user || req.user.isBlocked) {
+    if (!req.user) {
+      return res.status(401).json({ message: 'رمز غير صالح أو منتهي الصلاحية.' });
+    }
+    if (req.user.isBlocked) {
       return res.status(401).json({ message: 'تم حظر الحساب. تواصل مع الإدارة.' });
+    }
+    if (!isTokenCurrent(decoded, req.user)) {
+      return res.status(401).json({ message: 'انتهت الجلسة. سجّل الدخول مجددًا.' });
     }
 
     next();
@@ -39,7 +48,7 @@ const optionalAuth = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, jwtSecret);
     const user = await User.findById(decoded.id).select('-password');
-    if (user && !user.isBlocked) req.user = user;
+    if (user && !user.isBlocked && isTokenCurrent(decoded, user)) req.user = user;
   } catch (error) {
     // نتجاهل الرمز غير الصالح ونعامله كزائر
   }

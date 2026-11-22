@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     isBlocked: { type: Boolean, default: false },
+    // يزداد عند تغيير كلمة المرور أو الحظر، فتُبطَل كل الجلسات (التوكنات) السابقة
+    tokenVersion: { type: Number, default: 0 },
     lastLoginAt: { type: Date, default: null },
     // الحسابات القديمة تُعتبر مؤكدة؛ الحسابات الجديدة تُضبط عند التسجيل
     emailVerified: { type: Boolean, default: true },
@@ -34,6 +36,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
+  if (!this.isNew) this.tokenVersion = (this.tokenVersion || 0) + 1;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

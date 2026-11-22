@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import api from './api/axios';
@@ -13,7 +13,6 @@ import CartPage from './pages/CartPage';
 import FavoritesPage from './pages/FavoritesPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
 import OrdersPage from './pages/OrdersPage';
 import GalleryPage from './pages/GalleryPage';
@@ -24,10 +23,16 @@ import { defaultSiteContent, mergeSiteSettings } from './data/siteContent';
 import { SiteProvider } from './context/SiteContext';
 import IntroSplash from './components/ui/IntroSplash';
 
+// لوحة التحكم تُحمَّل عند الحاجة فقط حتى لا يحمّلها زوار المتجر
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+
 export default function App() {
   const { user, resendVerification } = useAuth();
   const [siteSettings, setSiteSettings] = useState(defaultSiteContent);
-  const [showIntro, setShowIntro] = useState(true);
+  const { pathname } = useLocation();
+  // لوحة التحكم تعمل بواجهة مستقلة كاملة الشاشة (بدون شريط الموقع والفوتر)
+  const isDashboard = pathname.startsWith('/admin') && user?.role === 'admin';
+  const [showIntro, setShowIntro] = useState(() => !window.location.pathname.startsWith('/admin'));
 
   const handleResend = async () => {
     try {
@@ -58,8 +63,8 @@ export default function App() {
     <SiteProvider value={{ siteSettings, applySettings }}>
     <div className="min-h-screen bg-stone-100 text-stone-900 transition-colors duration-300 dark:bg-stone-950 dark:text-stone-100">
       {showIntro && <IntroSplash siteSettings={siteSettings} onComplete={dismissIntro} />}
-      <Navbar siteSettings={siteSettings} />
-      {user && user.emailVerified === false && (
+      {!isDashboard && <Navbar siteSettings={siteSettings} />}
+      {!isDashboard && user && user.emailVerified === false && (
         <div className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900">
           بريدك الإلكتروني غير مؤكد. أكّده لتتمكن من إرسال الطلبات والتعليقات.{' '}
           <button type="button" onClick={handleResend} className="font-bold underline">إعادة إرسال رابط التأكيد</button>
@@ -79,12 +84,12 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/admin" element={<AdminPage onSettingsSaved={applySettings} />} />
+          <Route path="/admin" element={<Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-stone-500">جارٍ تحميل لوحة التحكم...</div>}><AdminPage onSettingsSaved={applySettings} /></Suspense>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      <Footer siteSettings={siteSettings} />
-      <ChatAssistant />
+      {!isDashboard && <Footer siteSettings={siteSettings} />}
+      {!isDashboard && <ChatAssistant />}
     </div>
     </SiteProvider>
   );

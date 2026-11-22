@@ -63,8 +63,8 @@ const startServer = async () => {
   );
   // السماح بعرض الصور المرفوعة من نطاق الواجهة الأمامية
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '200kb' }));
+  app.use(express.urlencoded({ extended: true, limit: '200kb' }));
   app.use(cookieParser());
   app.use(morgan('dev'));
   // الصور تُقدَّم من MongoDB (GridFS)

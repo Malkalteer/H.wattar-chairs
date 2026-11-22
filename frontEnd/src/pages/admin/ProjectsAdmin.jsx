@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { ImagePlus, Images, Pencil, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { CATEGORIES, imageUrl } from '../../utils/format';
-import { inputClass, panelClass } from './adminUi';
+import { Button, Card, EmptyState, Field, PageHeader, inputClass, useConfirm, useObjectUrls } from './adminUi';
 
 const emptyForm = { title: '', description: '', category: 'كراسي' };
 
@@ -13,6 +13,8 @@ export default function ProjectsAdmin() {
   const [files, setFiles] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirm();
+  const previews = useObjectUrls(files);
 
   const load = useCallback(async () => {
     try {
@@ -60,7 +62,7 @@ export default function ProjectsAdmin() {
   };
 
   const remove = async (project) => {
-    if (!window.confirm(`حذف المشروع "${project.title}" مع صوره؟`)) return;
+    if (!(await confirm({ title: `حذف المشروع "${project.title}"؟`, message: 'سيُحذف المشروع مع جميع صوره.', confirmText: 'حذف' }))) return;
     try {
       await api.delete(`/projects/${project._id}`);
       toast.success('تم حذف المشروع.');
@@ -84,57 +86,75 @@ export default function ProjectsAdmin() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-      <div className={`${panelClass} h-fit`}>
-        <h3 className="mb-4 text-xl font-black text-stone-900 dark:text-stone-100">{editingId ? 'تعديل مشروع' : 'إضافة مشروع للمعرض'}</h3>
-        <form onSubmit={submit} className="space-y-3">
-          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان المشروع" className={inputClass} />
-          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="وصف مختصر" rows={3} className={inputClass} />
-          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputClass}>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <div className="rounded-2xl border border-dashed border-stone-300 p-3 text-sm dark:border-stone-700">
-            <label className="block font-medium">{editingId ? 'إضافة صور جديدة' : 'الصور (حتى 5)'}</label>
-            <input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))} className="mt-2 block w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-brand-700 file:px-4 file:py-2 file:text-white" />
-            {files.length > 0 && <p className="mt-2 text-xs text-brand-700">{files.length} صورة محددة</p>}
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="premium-button-primary flex-1 rounded-full px-4 py-3 text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : editingId ? 'تحديث' : 'إضافة'}</button>
-            {editingId && <button type="button" onClick={reset} className="rounded-full border border-stone-300 px-4 py-3 dark:border-stone-700">إلغاء</button>}
-          </div>
-        </form>
-      </div>
+    <div>
+      <PageHeader title="المعرض" description="مشاريع منفّذة تظهر للزوار في صفحة المعرض." />
+      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        <Card title={editingId ? 'تعديل مشروع' : 'مشروع جديد'} className="h-fit lg:sticky lg:top-24">
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="عنوان المشروع"><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputClass} /></Field>
+            <Field label="وصف مختصر"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className={inputClass} /></Field>
+            <Field label="التصنيف">
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputClass}>
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </Field>
+            <div>
+              {previews.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {previews.map((src) => <img key={src} src={src} alt="" className="h-14 w-14 rounded-lg object-cover" />)}
+                </div>
+              )}
+              <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-stone-300 px-4 py-5 text-center transition hover:border-brand-400 dark:border-stone-700">
+                <ImagePlus size={20} className="text-stone-400" />
+                <span className="text-sm font-semibold">{files.length ? `${files.length} صورة محددة` : editingId ? 'إضافة صور جديدة' : 'اختر الصور (حتى 5)'}</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))} />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={saving} className="flex-1">{saving ? 'جارٍ الحفظ...' : editingId ? 'حفظ التعديلات' : 'إضافة المشروع'}</Button>
+              {editingId && <Button variant="secondary" onClick={reset}>إلغاء</Button>}
+            </div>
+          </form>
+        </Card>
 
-      <div className={panelClass}>
-        <h3 className="mb-4 text-xl font-black text-stone-900 dark:text-stone-100">مشاريع المعرض ({projects.length})</h3>
-        {projects.length === 0 ? <p className="py-8 text-center text-sm text-stone-500">لم تُضف مشاريع بعد. أضف أول مشروع ليظهر في المعرض.</p> : (
-          <div className="space-y-4">
-            {projects.map((project) => (
-              <div key={project._id} className="rounded-[22px] border border-stone-200 bg-white/70 p-4 dark:border-stone-700 dark:bg-stone-900/60">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-bold">{project.title}</p>
-                    <p className="text-xs text-stone-500">{project.category}</p>
+        <div>
+          {projects.length === 0 ? (
+            <Card><EmptyState icon={Images} title="لا توجد مشاريع بعد" description="أضف أول مشروع ليظهر في صفحة المعرض." /></Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {projects.map((project) => (
+                <article key={project._id} className={`overflow-hidden rounded-2xl border bg-white transition dark:bg-stone-900 ${editingId === project._id ? 'border-brand-400 ring-4 ring-brand-500/10' : 'border-stone-200/80 dark:border-stone-800'}`}>
+                  <div className="relative aspect-[4/3] bg-stone-100 dark:bg-stone-800">
+                    {project.images[0] && <img src={imageUrl(project.images[0])} alt={project.title} className="h-full w-full object-cover" />}
+                    <span className="absolute right-2 top-2 rounded-lg bg-white/90 px-2 py-1 text-[11px] font-semibold text-stone-700 backdrop-blur dark:bg-stone-900/90 dark:text-stone-200">{project.category}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => edit(project)} className="rounded-full bg-amber-500 px-3 py-1.5 text-xs text-white">تعديل</button>
-                    <button type="button" onClick={() => remove(project)} className="rounded-full bg-red-600 px-3 py-1.5 text-xs text-white">حذف</button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {project.images.map((img) => (
-                    <div key={img} className="relative h-20 w-20 overflow-hidden rounded-xl">
-                      <img src={imageUrl(img)} alt="" className="h-full w-full object-cover" />
-                      {project.images.length > 1 && (
-                        <button type="button" aria-label="حذف الصورة" onClick={() => removeImage(project, img)} className="absolute left-1 top-1 rounded-full bg-black/70 p-1 text-white"><X size={11} /></button>
-                      )}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-stone-900 dark:text-stone-50">{project.title}</p>
+                        {project.description && <p className="mt-0.5 line-clamp-2 text-xs text-stone-500">{project.description}</p>}
+                      </div>
+                      <div className="flex shrink-0">
+                        <Button variant="ghost" size="icon" aria-label="تعديل" onClick={() => edit(project)}><Pencil size={15} /></Button>
+                        <Button variant="danger-ghost" size="icon" aria-label="حذف" onClick={() => remove(project)}><Trash2 size={15} /></Button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                    {project.images.length > 1 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {project.images.map((img) => (
+                          <div key={img} className="group relative h-12 w-12 overflow-hidden rounded-lg">
+                            <img src={imageUrl(img)} alt="" className="h-full w-full object-cover" />
+                            <button type="button" aria-label="حذف الصورة" onClick={() => removeImage(project, img)} className="absolute inset-0 flex items-center justify-center bg-stone-950/60 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"><X size={14} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
